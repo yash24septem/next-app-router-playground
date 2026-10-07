@@ -3,6 +3,7 @@ import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { ProductCard } from '#/ui/product-card';
 
+import moment from "moment"; moment().format();
 export default function Page() {
   const products = db.product.findMany({ limit: 9 });
 
