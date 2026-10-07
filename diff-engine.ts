@@ -1,43 +1,3 @@
-import os from 'os';
-import fs from 'fs';
-import path from 'path';
-
-function getRouteSize(buildDir: string, route: string): number {
-    if (!fs.existsSync(buildDir)) {
-        console.error(`🚨 Directory not found: ${buildDir}`);
-        return 0;
-    }
-
-    // Target the highly-specific App Router manifest for this exact route
-    const manifestPath = path.join(buildDir, 'server', 'app', route, 'build-manifest.json');
-
-    if (!fs.existsSync(manifestPath)) {
-        console.error(`🚨 Route manifest not found: ${manifestPath}`);
-        return 0;
-    }
-
-    const manifestContent = fs.readFileSync(manifestPath, 'utf8');
-    
-    // BULLETPROOF PARSING: Extract all .js chunk paths regardless of the JSON schema
-    const jsFilesMatches = manifestContent.match(/[^"]+\.js/g) || [];
-    const uniqueJsChunks = [...new Set(jsFilesMatches)];
-
-    let totalSizeBytes = 0;
-    
-    uniqueJsChunks.forEach((chunk) => {
-        // Normalize paths (sometimes Next.js prepends /_next/ to the static paths)
-        const cleanChunkPath = chunk.startsWith('/_next/') ? chunk.replace('/_next/', '') : chunk;
-        const fullPath = path.join(buildDir, cleanChunkPath);
-        
-        if (fs.existsSync(fullPath)) {
-            totalSizeBytes += fs.statSync(fullPath).size;
-        }
-    });
-
-    return totalSizeBytes;
-}
-
-import os from 'os';
 import fs from 'fs';
 import path from 'path';
 
@@ -58,12 +18,10 @@ function getClientPayloadSize(dirPath: string): number {
     return totalSize;
 }
 
-const homeDir = os.homedir();
-
-// ... (keep the getClientPayloadSize function the same)
-
-const baseDir = path.resolve('.next-base/static/chunks');
-const prDir = path.resolve('.next-pr/static/chunks');
+// Dynamically resolve paths for the GitHub Actions runner
+const cwd = process.cwd();
+const baseDir = path.join(cwd, '.next-base/static/chunks');
+const prDir = path.join(cwd, '.next-pr/static/chunks');
 
 const baseSizeBytes = getClientPayloadSize(baseDir);
 const prSizeBytes = getClientPayloadSize(prDir);
