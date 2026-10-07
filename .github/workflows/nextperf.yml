@@ -8,58 +8,56 @@ jobs:
   analyze-bundle:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write # Required to post the comment
+      pull-requests: write
       contents: read
     
     steps:
-      - name: Checkout PR Branch
-        uses: actions/checkout@v4
-      
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          
-      - name: Install Dependencies
+
+      # 1. Checkout the Main branch first to establish the baseline
+      - name: Checkout Base Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+
+      - name: Install Base Dependencies
         run: npm install
 
-      # 1. Build the PR and save the payload
+      - name: Build Base
+        run: |
+          npm run build
+          mv .next .next-base
+
+      # 2. Checkout the PR Branch second
+      - name: Checkout PR Branch
+        uses: actions/checkout@v4
+        with:
+          clean: false # This is critical: It tells Git NOT to delete the .next-base folder we just built!
+
+      - name: Install PR Dependencies
+        run: npm install
+
       - name: Build PR
         run: |
           npm run build
           mv .next .next-pr
 
-      # 2. Checkout the Main branch to establish the baseline
-      - name: Checkout Base Branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.base_ref }}
-          clean: false # Keep the .next-pr folder we just built!
-
-      # 3. Build the Baseline
-      - name: Build Base
-        run: |
-          npm install
-          npm run build
-          mv .next .next-base
-
-      # 4. Run your V4 Diff Engine
+      # 3. Run the diff engine (diff-engine.ts now safely exists because we are on the PR branch)
       - name: Run NextPerf Engine
         id: nextperf
         run: |
-          # Install typescript executor globally for the runner
           npm install -g tsx
-          
-          # Run the engine and pipe the output to a markdown file
           npx tsx diff-engine.ts > nextperf-report.md
           
-          # Read the output so we can pass it to the comment step
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "report<<$EOF" >> $GITHUB_OUTPUT
           cat nextperf-report.md >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
 
-      # 5. Post the comment directly to the PR
+      # 4. Post the comment directly to the PR
       - name: Post PR Comment
         uses: actions/github-script@v7
         env:
@@ -69,7 +67,6 @@ jobs:
           script: |
             const report = process.env.REPORT;
             
-            // Find existing NextPerf comment to update it, rather than spamming
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
