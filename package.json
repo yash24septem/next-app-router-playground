@@ -16,6 +16,7 @@
     "codehike": "1.0.7",
     "date-fns": "4.1.0",
     "dinero.js": "2.0.0-alpha.10",
+    "moment": "2.31.0",
     "ms": "3.0.0-canary.1",
     "next": "16.4.0-canary.12",
     "react": "19.2.4",
